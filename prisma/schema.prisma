@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Salesperson {
+  id         Int           @id @default(autoincrement())
+  employeeNo String        @unique @map("employee_no")
+  name       String
+  department String
+  position   String
+  email      String        @unique
+  password   String
+  role       String        @default("SALESPERSON")
+  isActive   Boolean       @default(true) @map("is_active")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+  reports    DailyReport[]
+  comments   Comment[]
+
+  @@map("salespersons")
+}
+
+model Customer {
+  id           Int           @id @default(autoincrement())
+  customerCode String        @unique @map("customer_code")
+  companyName  String        @map("company_name")
+  contactName  String?       @map("contact_name")
+  phone        String?
+  address      String?
+  industry     String?
+  grade        String?
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  visits       VisitRecord[]
+
+  @@map("customers")
+}
+
+model DailyReport {
+  id            Int           @id @default(autoincrement())
+  salespersonId Int           @map("salesperson_id")
+  reportDate    DateTime      @map("report_date") @db.Date
+  status        String        @default("draft")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  salesperson   Salesperson   @relation(fields: [salespersonId], references: [id])
+  visitRecords  VisitRecord[]
+  problems      Problem[]
+  plans         Plan[]
+
+  @@unique([salespersonId, reportDate])
+  @@map("daily_reports")
+}
+
+model VisitRecord {
+  id            Int         @id @default(autoincrement())
+  dailyReportId Int         @map("daily_report_id")
+  customerId    Int         @map("customer_id")
+  visitContent  String?     @map("visit_content")
+  visitResult   String?     @map("visit_result")
+  sortOrder     Int         @default(0) @map("sort_order")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  dailyReport   DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
+  customer      Customer    @relation(fields: [customerId], references: [id])
+
+  @@map("visit_records")
+}
+
+model Problem {
+  id            Int         @id @default(autoincrement())
+  dailyReportId Int         @map("daily_report_id")
+  content       String
+  category      String?
+  sortOrder     Int         @default(0) @map("sort_order")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  dailyReport   DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
+
+  @@map("problems")
+}
+
+model Plan {
+  id            Int         @id @default(autoincrement())
+  dailyReportId Int         @map("daily_report_id")
+  content       String
+  priority      String      @default("medium")
+  sortOrder     Int         @default(0) @map("sort_order")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  dailyReport   DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
+
+  @@map("plans")
+}
+
+// Polymorphic: targetType = "PROBLEM" | "PLAN", targetId = Problem.id or Plan.id
+model Comment {
+  id         Int         @id @default(autoincrement())
+  targetType String      @map("target_type")
+  targetId   Int         @map("target_id")
+  authorId   Int         @map("author_id")
+  content    String
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  author     Salesperson @relation(fields: [authorId], references: [id])
+
+  @@index([targetType, targetId])
+  @@map("comments")
+}
